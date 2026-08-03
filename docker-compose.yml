@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-instap8}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5433:5432"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-instap8}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      NEXT_PUBLIC_INSTAGRAM_APP_ID: ${NEXT_PUBLIC_INSTAGRAM_APP_ID}
+      INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID}
+      INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI: ${NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI:-http://localhost:3000/api/instagram/callback}
+      INSTAGRAM_WEBHOOK_VERIFY_TOKEN: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN}
+      GATEWAY_SECRET: ${GATEWAY_SECRET:-}
+      API_SECRET_KEY: ${API_SECRET_KEY:-}
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:

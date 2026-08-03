@@ -15,6 +15,7 @@ import {
 } from "@/lib/instagram-api"
 
 const WEBHOOK_VERIFY_TOKEN = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL
 // Meta signs every webhook POST with HMAC-SHA256 of the raw body. Depending on app setup the
 // signing key is the Instagram app secret or the parent Meta app secret, so accept either.
 const APP_SECRETS = [process.env.INSTAGRAM_APP_SECRET, process.env.META_APP_SECRET].filter(
@@ -149,6 +150,16 @@ export async function POST(request: NextRequest) {
     }
     const body = JSON.parse(rawBody)
     if (!body.entry) return NextResponse.json({ ok: true })
+
+    // Forward to n8n in the background (fire-and-forget)
+    if (N8N_WEBHOOK_URL) {
+      fetch(N8N_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: rawBody,
+      }).catch((err) => console.error("[webhook] n8n forward failed:", err.message))
+    }
+
     const supabase = await getSupabaseServerClient()
 
     for (const entry of body.entry) {
